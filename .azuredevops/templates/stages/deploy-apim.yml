@@ -1,0 +1,61 @@
+parameters:
+  - name: env
+    type: string
+  - name: serviceConnection
+    type: string
+
+stages:
+- stage: 'deployapim_${{ parameters.env }}'
+  displayName: 'Deploy API to APIM ${{ parameters.env }}'
+  pool:
+    vmImage: 'ubuntu-latest'
+  variables:          
+    - template: ../variables/${{ parameters.env }}.yml@Self
+  jobs:
+  
+  - job: DeployApimInfra
+    displayName: Deploy Apim Infra
+    steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: Download Built ARM Templates
+      inputs:
+        buildType: "current"
+        downloadType: "single"
+        artifactName: "BuiltARMTemplates"
+        downloadPath: "$(System.DefaultWorkingDirectory)"
+
+    - task: DownloadBuildArtifacts@0
+      displayName: Download Swagger Json
+      inputs:
+        buildType: "current"
+        downloadType: "single"
+        artifactName: "config"
+        downloadPath: "$(System.DefaultWorkingDirectory)"
+    
+    - task: Bash@3
+      name: EscapedSwaggerJson
+      displayName: "Escaped Swagger Json"
+      inputs:
+        targetType: 'inline'
+        script: |
+          swaggerJson=`jq -R -s '.' < 'config/swaggerfile.json'`
+          echo "##vso[task.setvariable variable=swaggerJson;]$swaggerJson"
+          echo $swaggerJson
+
+    - task: AzureResourceManagerTemplateDeployment@3
+      name: DeployHelloApiInfra
+      displayName: Deploy Apim ARM Template
+      inputs:
+        deploymentScope: Resource Group
+        azureResourceManagerConnection: ${{ parameters.serviceConnection }}
+        subscriptionId: $(apimSubscriptionId)
+        action: Create Or Update Resource Group
+        resourceGroupName: $(apimResourceGroup)
+        location: $(location)
+        templateLocation: Linked artifact
+        csmFile: 'BuiltARMTemplates/apim.json'
+        overrideParameters: >-
+          -apimServiceName "$(apimName)"
+          -apiFormatValue $(swaggerJson)
+          -serviceUrl "https://$(helloApiFunctionApp).azurewebsites.net/api"
+        deploymentMode: Incremental

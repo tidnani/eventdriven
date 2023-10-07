@@ -1,0 +1,62 @@
+parameters:
+  - name: env
+    type: string
+  - name: serviceConnection
+    type: string
+
+stages:
+- stage: 'validate_${{ parameters.env }}'
+  displayName: 'Validate ${{ parameters.env }}'
+  pool:
+    vmImage: 'windows-latest'
+  variables:          
+    - template: ../variables/${{ parameters.env }}.yml@Self
+  jobs:
+  
+  - job: ValidateARMTemplates
+    displayName: Validate ARM Templates
+    steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: Download Built ARM Templates
+      inputs:
+        buildType: "current"
+        downloadType: "single"
+        artifactName: "BuiltARMTemplates"
+        downloadPath: "$(System.DefaultWorkingDirectory)"
+        
+    - task: AzureResourceManagerTemplateDeployment@3
+      name: ValidateHelloApiMain
+      displayName: Validate Main ARM Template
+      inputs:
+        deploymentScope: Resource Group
+        azureResourceManagerConnection: ${{ parameters.serviceConnection }}
+        subscriptionId: $(subscriptionId)
+        action: Create Or Update Resource Group
+        resourceGroupName: $(azureResourceGroup)
+        location: $(location)
+        templateLocation: Linked artifact
+        csmFile: 'BuiltARMTemplates/main.json' # created by bash script
+        overrideParameters: >-
+          -tags {"owner": "$(owner)", "application": "$(application)", "description": "$(description)", "repo": "$(repo)", "branch": "$(Build.SourceBranchName)"}
+          -functionAppName $(helloApiFunctionApp)
+          -storageAccountName $(helloApiStorageAccount)
+          -appServicePlanName $(helloApiAppServicePlan)
+        deploymentMode: Validation
+
+    - task: AzureResourceManagerTemplateDeployment@3
+      name: ValidatehelloApimInfra
+      displayName: Validate Apim ARM Template
+      inputs:
+        deploymentScope: Resource Group
+        azureResourceManagerConnection: ${{ parameters.serviceConnection }}
+        subscriptionId: $(apimSubscriptionId)
+        action: Create Or Update Resource Group
+        resourceGroupName: $(apimResourceGroup)
+        location: $(location)
+        templateLocation: Linked artifact
+        csmFile: 'BuiltARMTemplates/apim.json'
+        overrideParameters: >-
+          -apimServiceName "$(apimName)"
+          -apiFormatValue $(swaggerJson)
+          -serviceUrl "https://$(helloApiFunctionApp).azurewebsites.net/api"
+        deploymentMode: Validation

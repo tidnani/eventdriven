@@ -1,0 +1,44 @@
+variables:
+
+  # tags
+  - name: owner
+    value: 'Teena Idnani'
+
+  - name: application
+    value: 'helloApi'
+
+  - name: description
+    value: 'helloApi'
+
+  - name: repo
+    value: 'https://dev.azure.com/investec/investec-cloud-experience/_git/api-integration-reference'
+
+  # resource names
+  - name: helloApiFunctionApp
+    value: 'func-hello-api-0011'
+
+  - name: helloApiStorageAccount
+    value: 'sthelloapi0011'
+
+  - name: helloApiAppServicePlan
+    value: 'plan-hello-api-0011'
+
+  - name: azureResourceGroup
+    value: 'myResourceGroup'
+
+  - name: subscriptionId
+    value: 'd473e026-18c5-47ae-a49e-ab3ae15846cb'
+
+  # Azure Api Management instance
+  - name: apimName
+    value: 'apim-demo-dev-0011'
+
+  - name: apimResourceGroup
+    value: 'apiManagementGroup'
+
+  - name: apimSubscriptionId
+    value: 'd473e026-18c5-47ae-a49e-ab3ae15846cb'
+
+  - name: apimBaseUrl
+    value: 'https://apim-demo-dev-0011.azure-api.net/
+'

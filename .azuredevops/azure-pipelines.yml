@@ -1,0 +1,107 @@
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - src/*
+      - infra/*
+
+variables:
+  - name: serviceConnectionDev
+    value: azurerm-publish-api-dev-001
+  # - name: serviceConnectionNonProd
+  #   value: azurerm-publish-api-nonprod-001
+  # - name: serviceConnectionProd
+  #   value: azurerm-publish-api-prod-001
+
+stages:
+  - template: templates/stages/build.yml@Self
+  - template: templates/stages/bicep.yml@Self
+
+# ---------------------------------------------------------------------------
+# Dev Environment
+# ---------------------------------------------------------------------------
+
+  - template: templates/stages/validate.yml@Self
+    parameters:
+      env: dev
+      serviceConnection: ${{ variables.serviceConnectionDev }}
+  
+  - template: templates/stages/deploy.yml@Self
+    parameters:
+      env: dev
+      serviceConnection: ${{ variables.serviceConnectionDev }}
+
+  # ---------------------------------------------------------------------------
+  # NonProd Environment
+  # ---------------------------------------------------------------------------
+
+  # - ${{ if eq(variables.isMain, true) }}:
+  #   - template: templates/stages/validate.yml@Self
+  #     parameters:
+  #       env: nonprod
+  #       serviceConnection: ${{ variables.serviceConnectionNonProd }}
+  
+  # - ${{ if eq(variables.isMain, true) }}:
+  #   - template: templates/stages/deploy.yml@Self
+  #     parameters:
+  #       env: nonprod
+  #       serviceConnection: ${{ variables.serviceConnectionNonProd }}
+
+  # - ${{ if eq(variables.isMain, true) }}:
+  #   - template: templates/stages/swagger.yml@Self
+  #     parameters:
+  #       env: nonprod
+  #       serviceConnection: ${{ variables.serviceConnectionNonProd }}
+  #       serviceConnectionBackendApiAdApp : ${{ variables.serviceConnectionBackendApiAdAppNonProd }}
+
+  # - ${{ if eq(variables.isMain, true) }}:
+  #   - template: templates/stages/deploy-apim.yml@Self
+  #     parameters:
+  #       env: nonprod
+  #       serviceConnection: ${{ variables.serviceConnectionNonProd }}
+  #       serviceConnectionBackendApiAdApp : ${{ variables.serviceConnectionBackendApiAdAppNonProd }}
+
+  # ---------------------------------------------------------------------------
+  # Prod Environment
+  # ---------------------------------------------------------------------------
+
+    # - ${{ if eq(variables.isMain, true) }}:
+    #   - template: templates/stages/validate.yml@Self
+    #     parameters:
+    #       env: prod
+    #       serviceConnection: ${{ variables.serviceConnectionProd }}
+
+    # - ${{ if eq(variables.isMain, true) }}:
+    #   - template: templates/stages/snow-raise.yml@Self
+    #     parameters:
+    #       environment: prod
+    #       serviceNowServiceConnection: ${{ variables.serviceNowServiceConnection }}
+    
+    # - ${{ if eq(variables.isMain, true) }}:
+    #   - template: templates/stages/deploy.yml@Self
+    #     parameters:
+    #       env: prod
+    #       serviceConnection: ${{ variables.serviceConnectionProd }}
+
+    # - ${{ if eq(variables.isMain, true) }}:
+    #   - template: templates/stages/swagger.yml@Self
+    #     parameters:
+    #       env: prod
+    #       serviceConnection: ${{ variables.serviceConnectionProd }}
+    #       serviceConnectionBackendApiAdApp : ${{ variables.serviceConnectionBackendApiAdAppProd }}
+
+    # - ${{ if eq(variables.isMain, true) }}:
+    #   - template: templates/stages/deploy-apim.yml@Self
+    #     parameters:
+    #       env: prod
+    #       serviceConnection: ${{ variables.serviceConnectionProd }}
+    #       serviceConnectionBackendApiAdApp : ${{ variables.serviceConnectionBackendApiAdAppProd }}
+
+    # - ${{ if eq(variables.isMain, true) }}:
+    #   - template: templates/stages/snow-release.yml@Self
+    #     parameters:
+    #       environment: prod
+    #       serviceNowServiceConnection: ${{ variables.serviceNowServiceConnection }}

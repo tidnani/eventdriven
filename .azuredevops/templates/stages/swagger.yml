@@ -1,0 +1,32 @@
+parameters:
+  - name: env
+    type: string
+  - name: serviceConnection
+    type: string
+
+stages:
+  - stage: "swagger_${{ parameters.env }}"
+    displayName: "Swagger ${{ parameters.env }}"
+    pool:
+      vmImage: "windows-latest"
+    variables:
+      - template: ../variables/${{ parameters.env }}.yml@Self
+    jobs:
+      - job: SwaggerGenerator
+        displayName: Generate Swagger File
+        steps:
+          - task: AzurePowerShell@4
+            displayName: Generate swagger file
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: inlineScript
+              inline: |
+                $backendApiSwaggerUrl = 'https://$(helloApiFunctionApp).azurewebsites.net/api/swagger.json'
+                $swagger = Invoke-RestMethod -Uri $backendApiSwaggerUrl | ConvertTo-Json -Depth 10 -EscapeHandling Default | Out-File '$(Build.SourcesDirectory)\infra\swaggerfile.json'
+              azurePowerShellVersion: "LatestVersion"
+              pwsh: true
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: '$(Build.SourcesDirectory)/infra'
+              artifactName: 'config'

@@ -1,0 +1,27 @@
+stages:
+- stage: build_hello_api
+  displayName: Build Hello Api Function
+  dependsOn: []
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - job: Build
+    displayName: 'Build'
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK 8.x'
+      inputs:
+        packageType: 'sdk'
+        version: 8.x
+        
+    - task: DotNetCoreCLI@2
+      displayName: 'Hello OrderAPI dotnet publish'
+      inputs:
+        command: publish
+        arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)/src /p:SourceRevisionId=$(Build.SourceVersion)'
+        zipAfterPublish: true
+        publishWebProjects: false
+        workingDirectory: src
+        
+    - publish: $(Build.ArtifactStagingDirectory)/src
+      artifact: src

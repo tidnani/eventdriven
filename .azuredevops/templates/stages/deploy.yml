@@ -1,0 +1,91 @@
+parameters:
+  - name: env
+    type: string
+  - name: serviceConnection
+    type: string
+
+stages:
+- stage: 'deploy_${{ parameters.env }}'
+  displayName: 'Deploy ${{ parameters.env }}'
+  pool:
+    vmImage: 'ubuntu-latest'
+  variables:          
+    - template: ../variables/${{ parameters.env }}.yml@Self
+  jobs:
+  
+  - job: DeployARMTemplates
+    displayName: Deploy ARM Templates
+    steps:
+
+    - task: DownloadBuildArtifacts@0
+      displayName: Download Built ARM Templates
+      inputs:
+        buildType: "current"
+        downloadType: "single"
+        artifactName: "BuiltARMTemplates"
+        downloadPath: "$(System.DefaultWorkingDirectory)"
+
+    - task: AzureResourceManagerTemplateDeployment@3
+      retryCountOnTaskFailure: 5
+      name: DeployHelloApiMain
+      displayName: Deploy Main ARM Template
+      inputs:
+        deploymentScope: Resource Group
+        azureResourceManagerConnection: ${{ parameters.serviceConnection }}
+        subscriptionId: $(subscriptionId)
+        action: Create Or Update Resource Group
+        resourceGroupName: $(azureResourceGroup)
+        location: $(location)
+        templateLocation: Linked artifact
+        csmFile: 'BuiltARMTemplates/main.json' # created by bash script
+        overrideParameters: >-
+          -tags {"owner": "$(owner)", "application": "$(application)", "description": "$(description)", "repo": "$(repo)", "branch": "$(Build.SourceBranchName)"}
+          -functionAppName $(helloApiFunctionApp)
+          -storageAccountName $(helloApiStorageAccount)
+          -appServicePlanName $(helloApiAppServicePlan)
+        deploymentMode: Incremental
+  
+  - job: DeployApp
+    displayName: Deploy App
+    dependsOn: DeployARMTemplates
+    steps:
+    - download: current
+      displayName: 'Download Function Application'
+      artifact: src
+
+    - task: AzureCLI@2
+      displayName: Wait for function app to start running
+      inputs:
+        azureSubscription: ${{ parameters.serviceConnection }}
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          sub="$(subscriptionId)"
+          rg="$(azureResourceGroup)"
+          fn="$(helloApiFunctionApp)"
+          expected="Running"
+          attempts=30 # Thirty Attempts 
+          delaySeconds=10 # Gives about 5 minutes before timeout
+          for attempt in $(seq $attempts)
+          do
+          # Check if function app is "Running"
+          if [[ "$(az resource show --ids /subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn | jq -r ".properties.state")" = "$expected"* ]]
+          then
+              echo "$(az resource show --ids /subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn | jq -r)"
+              echo "$fn is \"$expected\""
+              break # If the resource is running, then break the loop
+          fi
+          # Otherwise, wait before trying again
+          echo "[$attempt/$attempts] $fn is not currently \"$expected\" waiting for $delaySeconds seconds..."
+          sleep $delaySeconds
+          done
+          exit 0 # Leave with success no matter what
+
+    - task: AzureFunctionApp@1
+      displayName: 'Deploy Function'
+      inputs:
+        azureSubscription: ${{ parameters.serviceConnection }}
+        appType: functionApp
+        appName: $(helloApiFunctionApp)
+        package: $(Pipeline.Workspace)/src/**/*.zip
+        deploymentMethod: zipDeploy

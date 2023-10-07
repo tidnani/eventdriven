@@ -1,0 +1,21 @@
+stages:
+- stage: 'compile_bicep_to_arm'
+  displayName: 'Compile Bicep to ARM'
+  pool:
+    vmImage: 'ubuntu-latest'
+  jobs:
+  - job: CompileBicepToARM
+    displayName: Compile Bicep to ARM
+    steps:
+    - bash: |
+        mkdir -p $(Build.ArtifactStagingDirectory)/infra/apim
+        az bicep build --file infra/main.bicep --outdir $(Build.ArtifactStagingDirectory)/infra
+        az bicep build --file infra/apim.bicep --outdir $(Build.ArtifactStagingDirectory)/infra
+      displayName: "Compile Bicep to ARM"
+    
+    - task: PublishBuildArtifacts@1
+      displayName: "Upload Built ARM Templates"
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/infra'
+        ArtifactName: 'BuiltARMTemplates'
+        publishLocation: 'Container'
