@@ -1,8 +1,14 @@
-@description('Location for the resources')
-param location string = resourceGroup().location
+@description('Specifies the location for resources.')
+param location2 string = 'northeurope'
+
+@description('Specifies the location for resources.')
+param location string = 'northeurope'
 
 @description('Tags that our resources need')
 param tags object
+
+@description('The name of the app service plan')
+param appServicePlanName string
 
 @description('The name of the function app')
 param functionAppName string
@@ -10,73 +16,51 @@ param functionAppName string
 @description('The name of the storage account')
 param storageAccountName string
 
-@description('The name of the app service plan')
-param appServicePlanName string
+@description('The name for the SQL API database')
+param databaseName string = 'orders'
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2021-02-01' = {
-  name: storageAccountName
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard_ZRS'
+@description('The name for the SQL API container')
+param containerName string = 'events'
+
+@description('The name for the event grid topic')
+param eventGridName string 
+
+@description('Cosmos DB account name')
+param cosmosDbAccountName string 
+
+@description('Application Insights resource name')
+param applicationInsightsName string
+
+@description('Log Analytics resource name')
+param logAnalyticsWorkspaceName string 
+
+module compute 'compute.bicep'= {
+  name: 'compute-deployment'
+  params: {
+    location: location
+    tags: tags
+    appServicePlanName: appServicePlanName
+    functionAppName: functionAppName
+    storageAccountName: storageAccountName
+    cosmosDbAccountName: cosmosDbAccountName
+    eventGridName: eventGridName
+    applicationInsightsName: applicationInsightsName
   }
-  kind: 'StorageV2'
-  identity: {
-    type: 'None'
-  }
-  properties: {
-    accessTier: 'Hot'
-    allowBlobPublicAccess: false
-    allowSharedKeyAccess: true
-    networkAcls: {
-        bypass: 'AzureServices'
-        defaultAction: 'Allow'
-    }
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
-  }
+  dependsOn:[
+    storage
+  ]
 }
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2021-02-01' = {
-  name: appServicePlanName
-  location: location
-  properties: {
-    reserved: false
-  }
-  sku: {
-    name: 'F1'
-  }
-  kind: 'elastic'
-}
-
-resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
-  name: functionAppName
-  location: location
-  tags: tags
-  kind: 'functionapp'
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    serverFarmId: appServicePlan.id
-    clientAffinityEnabled: false
-    httpsOnly: true
-    siteConfig: {
-      windowsFxVersion: 'DOTNET|6.0'
-      appSettings: [
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet'
-        }
-        {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-        }
-      ]
-    }
+module storage 'storage.bicep'= {
+  name: 'storage-deployment'
+  params: {
+    location: location2
+    databaseName:databaseName
+    containerName:containerName
+    eventGridName: eventGridName
+    tags: tags
+    cosmosDbAccountName: cosmosDbAccountName
+    applicationInsightsName: applicationInsightsName
+    logAnalyticsWorkspaceName: logAnalyticsWorkspaceName
   }
 }
