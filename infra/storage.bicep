@@ -98,6 +98,7 @@ resource eventgrid 'Microsoft.EventGrid/topics@2023-06-01-preview' = {
   kind: 'Azure'
   properties: {
     disableLocalAuth: false
+    minimumTlsVersionAllowed: '1.2'
   }
 }
 
